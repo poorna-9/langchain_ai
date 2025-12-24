@@ -43,6 +43,11 @@ INSTALLED_APPS = [
     'research',
 ]
 INSTALLED_APPS+=["rest_framework"]
+INSTALLED_APPS += [
+    'cloudinary',
+    'cloudinary_storage',
+]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -78,12 +83,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 import dj_database_url
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=not DEBUG
-    )
+DATABASE_URL=os.getenv('DATABASE_URL')
+DATABASE={
+    'default':dj_database_url.config(default=DATABASE_URL,conn_max_age=600)
 }
 
 # Password validation
@@ -118,6 +120,7 @@ USE_TZ = True
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 STATIC_URL = '/static/'
@@ -125,3 +128,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static")
 ]
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv("CLOUDINARY_CLOUD_NAME"),
+    'API_KEY': os.getenv("CLOUDINARY_API_KEY"),
+    'API_SECRET': os.getenv("CLOUDINARY_API_SECRET"),
+}
