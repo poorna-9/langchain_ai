@@ -1,5 +1,4 @@
 let currentResearchId = null;
-
 function getCSRFToken() {
     let cookieValue = null;
     const name = "csrftoken";
@@ -15,24 +14,24 @@ function getCSRFToken() {
     }
     return cookieValue;
 }
-
 async function loadHistory() {
     try {
         const res = await fetch("/api/research/history/");
-        const data = await res.json();
+        if (!res.ok) return;
 
+        const data = await res.json();
         const historyList = document.getElementById("historyList");
         historyList.innerHTML = "";
 
         data.forEach(item => {
             const div = document.createElement("div");
             div.className = "history-item";
-            div.innerText = item.original_query;
+            div.textContent = item.original_query;
             div.onclick = () => loadResearch(item.research_id);
             historyList.appendChild(div);
         });
     } catch (err) {
-        console.error("Error loading history:", err);
+        console.error("History load failed:", err);
     }
 }
 
@@ -41,43 +40,55 @@ async function loadResearch(id) {
         currentResearchId = id;
 
         const res = await fetch(`/api/research/${id}/`);
+        if (!res.ok) return;
+
         const data = await res.json();
-
-        const chatContainer = document.getElementById("chatMessages");
-        chatContainer.innerHTML = `<div class="message assistant">${data.report}</div>`;
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-
+        const chat = document.getElementById("chatMessages");
+        chat.innerHTML = `<div class="message assistant">${data.report}</div>`;
+        chat.scrollTop = chat.scrollHeight;
         document.getElementById("detailsContent").innerHTML = `
-            <p><strong>Summary:</strong> ${data.summary}</p>
-            <p><strong>Reasoning:</strong> <pre>${JSON.stringify(data.reasoning, null, 2)}</pre></p>
-            <p><strong>Sources:</strong> ${data.sources.join(", ")}</p>
+            <p><strong>Summary:</strong></p>
+            <p>${data.summary}</p>
+
+            <p><strong>Reasoning:</strong></p>
+            <pre>${JSON.stringify(data.reasoning, null, 2)}</pre>
+
+            <p><strong>Sources:</strong></p>
+            <p>${(data.sources || []).join(", ")}</p>
+
             <p><strong>Cost:</strong> $${data.cost}</p>
-            <p><strong>Tokens:</strong> ${data.token_usage.input_tokens} / ${data.token_usage.output_tokens}</p>
+            <p><strong>Tokens:</strong> 
+                ${data.token_usage.input_tokens} / ${data.token_usage.output_tokens}
+            </p>
             <p><strong>Trace ID:</strong> ${data.trace_id}</p>
         `;
     } catch (err) {
-        console.error("Error loading research:", err);
+        console.error("Load research failed:", err);
     }
 }
 
 document.getElementById("newChatBtn").onclick = () => {
     currentResearchId = null;
     document.getElementById("chatMessages").innerHTML = "";
-    document.getElementById("detailsContent").innerHTML = "New research started";
+    document.getElementById("detailsContent").innerHTML =
+        "<p>New research started</p>";
 };
 
 document.getElementById("chatForm").onsubmit = async (e) => {
     e.preventDefault();
 
-    const query = document.getElementById("queryInput").value.trim();
+    const queryInput = document.getElementById("queryInput");
+    const fileInput = document.getElementById("fileInput");
+    const query = queryInput.value.trim();
+
     if (!query) return;
 
-    const files = document.getElementById("fileInput").files;
     const formData = new FormData();
     formData.append("query", query);
-    for (let f of files) formData.append("files", f);
-
-    let url = "/api/research/start/";
+    for (let f of fileInput.files) {
+        formData.append("files", f);
+    }
+    let url = "/api/research/";
     if (currentResearchId) {
         url = `/api/research/${currentResearchId}/continue/`;
     }
@@ -86,40 +97,34 @@ document.getElementById("chatForm").onsubmit = async (e) => {
         const res = await fetch(url, {
             method: "POST",
             body: formData,
-            headers: { "X-CSRFToken": getCSRFToken() }
+            headers: {
+                "X-CSRFToken": getCSRFToken()
+            }
         });
 
         if (!res.ok) {
-            const errorData = await res.json();
-            alert(errorData.error || "Failed to submit query");
+            const err = await res.json();
+            alert(err.error || "Request failed");
             return;
         }
 
         const data = await res.json();
         currentResearchId = data.parent_session_id;
 
-        const chatContainer = document.getElementById("chatMessages");
-        chatContainer.innerHTML += `
+        const chat = document.getElementById("chatMessages");
+        chat.innerHTML += `
             <div class="message user">${query}</div>
             <div class="message assistant">${data.report}</div>
         `;
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        chat.scrollTop = chat.scrollHeight;
 
-        document.getElementById("detailsContent").innerHTML = `
-            <p><strong>Summary:</strong> ${data.summary}</p>
-            <p><strong>Reasoning:</strong> <pre>${JSON.stringify(data.reasoning, null, 2)}</pre></p>
-            <p><strong>Sources:</strong> ${data.sources.join(", ")}</p>
-            <p><strong>Cost:</strong> $${data.cost}</p>
-            <p><strong>Tokens:</strong> ${data.token_usage.input_tokens} / ${data.token_usage.output_tokens}</p>
-            <p><strong>Trace ID:</strong> ${data.trace_id}</p>
-        `;
+        queryInput.value = "";
+        fileInput.value = "";
 
         loadHistory();
-        document.getElementById("queryInput").value = "";
-        document.getElementById("fileInput").value = "";
     } catch (err) {
-        console.error("Error submitting query:", err);
-        alert("Error submitting query. Check console for details.");
+        console.error("Submit failed:", err);
+        alert("Server error. Check console.");
     }
 };
 

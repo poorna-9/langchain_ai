@@ -24,8 +24,7 @@ def extract_text_from_file(file):
 @parser_classes([MultiPartParser, FormParser])
 def start_research_view(request):
     user=request.user
-    query=request.data.get("query")
-
+    query=request.POST.get("query") or request.GET.get("query")
     if not query:
         return Response(
             {"error": "Query is required"},
@@ -96,7 +95,7 @@ def start_research_view(request):
 @parser_classes([MultiPartParser, FormParser])
 def continue_research_view(request, research_id):
     user = request.user
-    query = request.data.get("query")
+    query = request.POST.get("query") or request.data.get("query")
 
     if not query:
         return Response(
