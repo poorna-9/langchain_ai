@@ -5,6 +5,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers import PydanticOutputParser
+from django.conf import settings
 
 class ResearchOutput(BaseModel):
     report: str = Field(description="Final detailed research report")
@@ -12,9 +13,8 @@ class ResearchOutput(BaseModel):
     reasoning: Dict = Field(description="Step-by-step reasoning")
     sources: List[str] = Field(description="List of sources used")
 
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2,openai_api_key=settings.OPENAI_API_KEY)
 parser = PydanticOutputParser(pydantic_object=ResearchOutput)
-
 def convert_context(chat_context):
     messages = []
     for item in chat_context:
