@@ -1,0 +1,8 @@
+Django
+djangorestframework
+gunicorn
+psycopg2-binary
+langchain
+langchain-openai
+pydantic
+PyPDF2

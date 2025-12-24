@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Research GPT</title>
+    <link rel="stylesheet" href="{% static 'research/css/style.css' %}">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="sidebar">
+        <button id="newChatBtn">+ New Research</button>
+        <div id="historyList"></div>
+    </div>
+    <div class="chat-container">
+        <div id="chatMessages"></div>
+
+        <form id="chatForm" enctype="multipart/form-data">
+            <input type="text" id="queryInput" placeholder="Ask your research question..." required />
+            <input type="file" id="fileInput" multiple />
+            <button type="submit">Send</button>
+        </form>
+    </div>
+    <div class="details-panel">
+        <h3>Research Details</h3>
+        <div id="detailsContent">
+            <p>Select a research to see details</p>
+        </div>
+    </div>
+
+</div>
+
+<script src="{% static 'research/js/app.js' %}"></script>
+</body>
+</html>

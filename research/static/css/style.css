@@ -1,0 +1,90 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* LEFT */
+.sidebar {
+    width: 20%;
+    background: #202123;
+    color: white;
+    padding: 15px;
+    overflow-y: auto;
+}
+
+.sidebar button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    background: #10a37f;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+
+.history-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #333;
+}
+
+.history-item:hover {
+    background: #2a2b32;
+}
+
+/* CENTER */
+.chat-container {
+    width: 60%;
+    display: flex;
+    flex-direction: column;
+    background: white;
+}
+
+#chatMessages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.message.user {
+    text-align: right;
+    margin-bottom: 10px;
+}
+
+.message.assistant {
+    text-align: left;
+    margin-bottom: 10px;
+    background: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+#chatForm {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+}
+
+#queryInput {
+    flex: 1;
+    padding: 10px;
+}
+
+#chatForm button {
+    margin-left: 10px;
+}
+
+/* RIGHT */
+.details-panel {
+    width: 20%;
+    background: #fafafa;
+    padding: 15px;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+}
