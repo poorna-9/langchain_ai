@@ -7,17 +7,27 @@ class ResearchSession(models.Model):
         ('completed', 'Completed'),
         ('failed', 'Failed'),
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
     query = models.TextField()
     parent_session = models.ForeignKey(
-        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_sessions'
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='child_sessions'
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='running')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    trace_id = models.CharField(max_length=255, blank=True, null=True)  
+    trace_id = models.CharField(max_length=255, blank=True, null=True)
     def __str__(self):
-        return f"{self.user.username} - {self.query[:50]}"
+        return self.query[:50]
+
 class ResearchSummary(models.Model):
     session = models.OneToOneField(ResearchSession, on_delete=models.CASCADE)
     summary = models.TextField()   

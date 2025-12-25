@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from .models import *
 from .prompts import gptresults
 from PyPDF2 import PdfReader
+from django.db import models
 
 def extract_text_from_file(file):
     if file.name.endswith(".pdf"):
@@ -20,32 +21,36 @@ def extract_text_from_file(file):
 
     return ""
 
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from rest_framework import status
+
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def start_research_view(request):
-    user=request.user
-    query=request.POST.get("query") or request.GET.get("query")
+    query = request.data.get("query") or request.POST.get("query")
+
     if not query:
         return Response(
             {"error": "Query is required"},
             status=status.HTTP_400_BAD_REQUEST
         )
-    root_session=ResearchSession.objects.create(
-        user=user,
+    root_session = ResearchSession.objects.create(
         query=query,
-        parent_session=None,
         status="running"
     )
-    root_session.parent_session=root_session
+    root_session.parent_session = root_session
     root_session.save(update_fields=["parent_session"])
-    chat_context=[]
+    chat_context = []
     files = request.FILES.getlist("files")
     for file in files:
         UploadedDocument.objects.create(
             session=root_session,
             file=file
         )
-        extracted=extract_text_from_file(file)
+
+        extracted = extract_text_from_file(file)
         if extracted.strip():
             chat_context.append({
                 "role": "system",
@@ -55,8 +60,7 @@ def start_research_view(request):
         "role": "user",
         "content": query
     })
-
-    result=gptresults(chat_context)
+    result = gptresults(chat_context)
     LLM.objects.create(
         session=root_session,
         parent_session=root_session,
@@ -78,7 +82,8 @@ def start_research_view(request):
         output_tokens=result["token_usage"]["output_tokens"],
         total_cost=result["cost"]
     )
-    root_session.trace_id = result["trace_id"]
+
+    root_session.trace_id = result.get("trace_id")
     root_session.status = "completed"
     root_session.save(update_fields=["trace_id", "status"])
 
@@ -91,10 +96,10 @@ def start_research_view(request):
         status=status.HTTP_201_CREATED
     )
 
+
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser])
 def continue_research_view(request, research_id):
-    user = request.user
     query = request.POST.get("query") or request.data.get("query")
 
     if not query:
@@ -102,25 +107,23 @@ def continue_research_view(request, research_id):
             {"error": "Query is required"},
             status=status.HTTP_400_BAD_REQUEST
         )
-
-    root_session=get_object_or_404(
+    root_session = get_object_or_404(
         ResearchSession,
         id=research_id,
-        user=user,
-        parent_session=research_id
+        parent_session=models.F("id")
     )
-
     session = ResearchSession.objects.create(
-        user=user,
         query=query,
         parent_session=root_session,
         status="running"
     )
-
     chat_context = []
-    previous_llm = LLM.objects.filter(
-        parent_session=root_session
-    ).order_by("created_at")
+
+    previous_llm = (
+        LLM.objects
+        .filter(parent_session=root_session)
+        .order_by("created_at")
+    )
 
     for record in previous_llm:
         chat_context.append({
@@ -131,37 +134,40 @@ def continue_research_view(request, research_id):
             "role": "assistant",
             "content": record.gptresponse
         })
-    files=request.FILES.getlist("files")
+    files = request.FILES.getlist("files")
     for file in files:
         UploadedDocument.objects.create(
             session=root_session,
             file=file
         )
+
         extracted = extract_text_from_file(file)
         if extracted.strip():
             chat_context.append({
                 "role": "system",
                 "content": extracted
             })
-
     chat_context.append({
         "role": "user",
         "content": query
     })
-
-    result =gptresults(chat_context)
+    result = gptresults(chat_context)
     LLM.objects.create(
         session=session,
         parent_session=root_session,
         query=query,
         gptresponse=result["report"]
     )
-    ResearchSummary.objects.filter(session=root_session).delete()
+    ResearchSummary.objects.filter(
+        session=root_session
+    ).delete()
     ResearchSummary.objects.create(
         session=root_session,
         summary=result["summary"]
     )
-    ResearchReasoning.objects.filter(session=root_session).delete()
+    ResearchReasoning.objects.filter(
+        session=root_session
+    ).delete()
     ResearchReasoning.objects.create(
         session=root_session,
         reasoning_json=result["reasoning"],
@@ -185,54 +191,63 @@ def continue_research_view(request, research_id):
     )
 
 
-
 @api_view(["GET"])
 def researchhistoryview(request):
-    user = request.user
     sessions = ResearchSession.objects.filter(
-        user=user,
-        parent_session__isnull=False,
-        id=models.F("parent_session")
+        parent_session=models.F("id")   
     ).order_by("-updated_at")
     data = []
     for session in sessions:
-        summary = ResearchSummary.objects.filter(session=session).first()
+        summary = ResearchSummary.objects.filter(
+            session=session
+        ).first()
         data.append({
             "research_id": session.id,
             "original_query": session.query,
             "summary": summary.summary if summary else None,
-            "status": session.status
+            "status": session.status,
+            "created_at": session.created_at
         })
     return Response(data)
 
 
 @api_view(["GET"])
 def researchdetailview(request, research_id):
-    user = request.user
     root_session = get_object_or_404(
         ResearchSession,
         id=research_id,
-        user=user,
-        parent_session=research_id
+        parent_session=models.F("id")   
     )
-    last_llm = LLM.objects.filter(
-        parent_session=root_session
-    ).last()
-    summary = ResearchSummary.objects.filter(session=root_session).first()
-    reasoning = ResearchReasoning.objects.filter(session=root_session).first()
-    costs = ResearchCost.objects.filter(session=root_session)
-
+    last_llm = (
+        LLM.objects
+        .filter(parent_session=root_session)
+        .order_by("-created_at")
+        .first()
+    )
+    summary = ResearchSummary.objects.filter(
+        session=root_session
+    ).first()
+    reasoning = ResearchReasoning.objects.filter(
+        session=root_session
+    ).first()
+    costs = ResearchCost.objects.filter(
+        session=root_session
+    )
     return Response({
+        "research_id": root_session.id,
+        "query": root_session.query,
+        "status": root_session.status,
         "report": last_llm.gptresponse if last_llm else None,
         "summary": summary.summary if summary else None,
         "reasoning": reasoning.reasoning_json if reasoning else None,
         "sources": reasoning.sources_json if reasoning else [],
         "token_usage": {
             "input_tokens": sum(c.input_tokens for c in costs),
-            "output_tokens": sum(c.output_tokens for c in costs)
+            "output_tokens": sum(c.output_tokens for c in costs),
         },
         "cost": sum(c.total_cost for c in costs),
-        "trace_id": root_session.trace_id
+        "trace_id": root_session.trace_id,
+        "created_at": root_session.created_at,
+        "updated_at": root_session.updated_at,
     })
-
 
