@@ -46,3 +46,4 @@ Endpoint	Method	Description
 /continue-research/<research_id>/	POST	Continue an existing session with new query and files.
 /research-history/	GET	Get all research sessions for the user.
 /research-detail/<research_id>/	GET	Get detailed results, summary, reasoning, sources, and cost.
+
